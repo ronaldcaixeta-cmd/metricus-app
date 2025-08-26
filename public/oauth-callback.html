@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conectando ao Google…</title>
+    <style>
+      body{font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans;
+           margin:24px; line-height:1.4}
+    </style>
+  </head>
+  <body>
+    <h3>Conectando ao Google Ads…</h3>
+    <p>Você já pode fechar esta janela em alguns segundos.</p>
+
+    <script>
+      (async () => {
+        const openerOrigin = window.location.origin;
+
+        try {
+          const url = new URL(window.location.href);
+          const code = url.searchParams.get('code');
+          const state = url.searchParams.get('state');
+          const err  = url.searchParams.get('error');
+
+          if (err) {
+            window.opener?.postMessage({ type: 'OAUTH_ERROR', error: err }, openerOrigin);
+            window.close(); return;
+          }
+          if (!code || !state) {
+            window.opener?.postMessage({ type: 'OAUTH_ERROR', error: 'missing code/state' }, openerOrigin);
+            window.close(); return;
+          }
+
+          const res = await fetch(
+            'https://fmywdbuhginfqoaclsac.supabase.co/functions/v1/oauth-google-exchange',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code, state })
+            }
+          );
+
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || json.error) {
+            const msg = json.detail || json.error || `exchange_failed_${res.status}`;
+            window.opener?.postMessage({ type: 'OAUTH_ERROR', error: msg }, openerOrigin);
+            window.close(); return;
+          }
+
+          window.opener?.postMessage(
+            { type: 'OAUTH_SUCCESS', account_name: json.account_name || 'Conta Google Ads' },
+            openerOrigin
+          );
+          window.close();
+
+        } catch (e) {
+          window.opener?.postMessage({ type: 'OAUTH_ERROR', error: String(e) }, window.location.origin);
+          window.close();
+        }
+      })();
+    </script>
+  </body>
+</html>
